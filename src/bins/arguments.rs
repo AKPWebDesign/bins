@@ -165,6 +165,13 @@ pub fn get_arguments(config: &Value) -> Result<Arguments> {
   for arg in get_clipboard_args() {
     app = app.arg(arg);
   }
+  #[cfg(feature = "copypasta")]
+  {
+    app = app
+    .arg(Arg::with_name("copypasta")
+      .long("pasta")
+      .help("uploads a random* copypasta in place of every input"));
+  }
   let res = app.get_matches();
   if res.is_present("list-services") {
     println!("{}", engines::get_bin_names().join("\n"));

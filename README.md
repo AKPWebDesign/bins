@@ -1,3 +1,10 @@
+# NIGHTLY BRANCH
+
+This branch will only compile on the nightly Rust toolchain. See [rustup](https://www.rustup.rs/) for how to run 
+multiple Rust toolchains on your machine.
+
+This branch contains silly things and is not officially supported.
+
 # bins
 
 *A tool for pasting from the terminal.*

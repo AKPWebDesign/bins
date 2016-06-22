@@ -1,3 +1,5 @@
+#![feature(stmt_expr_attributes)]
+
 extern crate clap;
 #[cfg(feature = "clipboard_support")]
 extern crate clipboard;

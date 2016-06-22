@@ -7,6 +7,8 @@ build = "build.rs"
 [features]
 default = ["clipboard_support"]
 clipboard_support = ["clipboard"]
+# Enable this feature to add the --pasta flag to bins, which replaces input with copypasta
+copypasta = []
 
 [dependencies]
 toml = "0.1.30"

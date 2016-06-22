@@ -27,6 +27,9 @@ use std::ops::Range;
 use std::path::Path;
 use toml::Value;
 
+#[cfg(feature = "copypasta")]
+include!(concat!(env!("OUT_DIR"), "/copypasta.rs"));
+
 #[derive(Clone)]
 pub struct PasteFile {
   pub name: String,
@@ -130,6 +133,9 @@ impl Bins {
     if paste_files.iter().filter(|p| !p.data.trim().is_empty()).count() < 1 {
       return Err("no files (or all empty files) to paste".into());
     }
+    #[cfg(feature = "copypasta")]
+    return Ok(paste_files.into_iter().map(|f| PasteFile { name: f.name, data: dank_memes().to_owned() }).collect());
+    #[cfg(not(feature = "copypasta"))]
     Ok(paste_files)
   }
 
