@@ -1,0 +1,25 @@
+language: rust
+rust:
+  - 1.8.0
+  - stable
+  - beta
+  - nightly
+sudo: required
+os:
+  - linux
+  - osx
+dist: trusty
+matrix:
+  allow_failures:
+    - rust: nightly
+addons:
+  apt:
+    packages:
+      - xorg-dev
+script:
+  - cargo build --verbose
+  - cargo build --verbose --no-default-features
+  # Currently no tests
+  # - cargo test --verbose
+notifications:
+  email: false

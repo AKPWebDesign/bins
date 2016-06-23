@@ -9,6 +9,11 @@ This branch contains silly things and is not officially supported.
 
 *A tool for pasting from the terminal.*
 
+[![Travis](https://img.shields.io/travis/jkcclemens/bins.svg?maxAge=2592000)](https://travis-ci.org/jkcclemens/bins)
+[![Crates.io](https://img.shields.io/crates/v/bins.svg?maxAge=2592000)](https://crates.io/crates/bins)
+[![Crates.io](https://img.shields.io/crates/d/bins.svg?maxAge=2592000)](https://crates.io/crates/bins)
+[![license](https://img.shields.io/github/license/jkcclemens/bins.svg?maxAge=2592000)](https://github.com/jkcclemens/bins/blob/master/LICENSE)
+
  Supports [GitHub Gist](https://gist.github.com/), [Pastebin](http://pastebin.com/), [Pastie](http://pastie.org),
  [Hastebin](http://hastebin.com/), [sprunge](http://sprunge.us/),
  and [Bitbucket snippets](https://bitbucket.org/snippets/).
@@ -19,11 +24,33 @@ This branch contains silly things and is not officially supported.
 
 **bins requires at least Rust 1.8.0.**
 
+### Release
+
+#### No Rust
+
+Don't want to install Rust? A precompiled binary may be available for your architecture at the
+[latest release](https://github.com/jkcclemens/bins/releases/latest).
+
+#### Rust
+
+If you want to install the [latest release](https://crates.io/crates/bins) from
+[crates.io](https://crates.io/):
+
+```sh
+# If you don't have Rust installed:
+# curl https://sh.rustup.rs -sSf | sh
+cargo install bins
+```
+
+### Development
+
+If you want to install the latest version from the repository:
+
 ```sh
 git clone https://github.com/jkcclemens/bins
 cd bins
 # If you don't have Rust installed:
-# curl -sSf https://static.rust-lang.org/rustup.sh | sh
+# curl https://sh.rustup.rs -sSf | sh
 cargo install
 ```
 

@@ -104,7 +104,7 @@ impl Bins {
     let arguments = &self.arguments;
     let message = &arguments.message;
     let paste_files: Vec<PasteFile> = if message.is_some() {
-      let name = arguments.name.clone().unwrap_or(String::from("message"));
+      let name = arguments.name.clone().unwrap_or_else(|| String::from("message"));
       vec![PasteFile::new(name, message.clone().unwrap())]
     } else if !arguments.files.is_empty() {
       let files = arguments.files.clone();
@@ -127,7 +127,7 @@ impl Bins {
       if let Err(e) = std::io::stdin().read_to_string(&mut buffer) {
         return Err(format!("error reading stdin: {}", e).into());
       }
-      let name = arguments.name.clone().unwrap_or(String::from("stdin"));
+      let name = arguments.name.clone().unwrap_or_else(|| String::from("stdin"));
       vec![PasteFile::new(name, buffer)]
     };
     if paste_files.iter().filter(|p| !p.data.trim().is_empty()).count() < 1 {
@@ -173,6 +173,9 @@ impl Bins {
     let url = try!(network::parse_url(url_string.as_ref()));
     let url_clone = url.clone();
     let bin = try!(self.get_engine_for_url(&url_clone));
+    if !bin.verify_url(&url_clone) {
+      return Err(format!("invalid url for {}", bin.get_name()).into());
+    }
     Ok(try!(bin.produce_raw_contents(self, &url)))
   }
 
