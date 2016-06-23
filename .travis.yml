@@ -1,8 +1,5 @@
 language: rust
 rust:
-  - 1.8.0
-  - stable
-  - beta
   - nightly
 sudo: required
 os:
@@ -19,6 +16,7 @@ addons:
 script:
   - cargo build --verbose
   - cargo build --verbose --no-default-features
+  - cargo build --verbose --features copypasta
   # Currently no tests
   # - cargo test --verbose
 notifications:
