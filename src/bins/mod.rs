@@ -5,6 +5,8 @@ pub mod configuration;
 pub mod engines;
 pub mod error;
 pub mod network;
+#[cfg(feature = "file_type_checking")]
+pub mod magic;
 
 extern crate std;
 extern crate toml;
@@ -18,6 +20,7 @@ pub use self::engines::sprunge::Sprunge;
 
 use bins::error::*;
 use bins::arguments::Arguments;
+use bins::configuration::BinsConfiguration;
 use bins::engines::Bin;
 use hyper::Url;
 use std::collections::HashMap;
@@ -25,7 +28,30 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::ops::Range;
 use std::path::Path;
-use toml::Value;
+
+cfg_if! {
+  if #[cfg(feature = "file_type_checking")] {
+    fn check_magic(bins: &Bins, pastes: &[PasteFile]) -> Result<()> {
+      use bins::magic::MagicWrapper;
+      let magic = try!(MagicWrapper::new(0, true));
+      let disallowed_types = bins.config.get_general_disallowed_file_types();
+      if let Some(disallowed_types) = disallowed_types {
+        for file in pastes {
+          let magic_type = try!(magic.magic_buffer(file.data.as_bytes()));
+          if disallowed_types.contains(&magic_type.to_lowercase()) {
+            return Err(format!("{} is a disallowed type ({}). use --force to force upload",
+              file.name, magic_type).into());
+          }
+        }
+      }
+      Ok(())
+    }
+  } else {
+    fn check_magic(_: &Bins, _: &[PasteFile]) -> Result<()> {
+      Ok(())
+    }
+  }
+}
 
 #[cfg(feature = "copypasta")]
 include!(concat!(env!("OUT_DIR"), "/copypasta.rs"));
@@ -46,12 +72,12 @@ impl PasteFile {
 }
 
 pub struct Bins {
-  pub config: Value,
+  pub config: BinsConfiguration,
   pub arguments: Arguments
 }
 
 impl Bins {
-  pub fn new(config: Value, arguments: Arguments) -> Self {
+  pub fn new(config: BinsConfiguration, arguments: Arguments) -> Self {
     Bins {
       config: config,
       arguments: arguments
@@ -110,7 +136,28 @@ impl Bins {
       let files = arguments.files.clone();
       let results = files.iter()
         .map(|s| Path::new(s))
-        .map(|p| self.read_file_to_pastefile(p))
+        .map(|p| {
+          if !self.arguments.force {
+            let metadata = match p.metadata() {
+              Ok(m) => m,
+              Err(e) => return Err(e.to_string().into()),
+            };
+            let size = metadata.len();
+            let limit = try!(self.config.get_general_file_size_limit());
+            if let Some(limit) = limit {
+              if size > limit {
+                return Err(format!("{} ({} bytes) was larger than the upload limit ({} bytes). use --force to force \
+                                    upload",
+                                   p.to_string_lossy(),
+                                   size,
+                                   limit)
+                  .into());
+              }
+            }
+          }
+          Ok(p)
+        })
+        .map(|p| p.and_then(|f| self.read_file_to_pastefile(f)))
         .map(|r| r.map_err(|e| e.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("\n")))
         .collect::<Vec<_>>();
       for res in results.iter().cloned() {
@@ -121,6 +168,15 @@ impl Bins {
       let mut pastes =
         results.iter().cloned().map(|r| r.unwrap()).filter(|p| !p.data.trim().is_empty()).collect::<Vec<_>>();
       self.handle_duplicate_file_names(&mut pastes);
+      if !self.arguments.force {
+        if let Some((name, pattern)) = self.check_for_disallowed_files(&pastes) {
+          return Err(format!("\"{}\" is disallowed by the pattern \"{}\". use --force to force upload",
+                             name,
+                             pattern)
+            .into());
+        }
+        try!(check_magic(self, &pastes));
+      }
       pastes
     } else {
       let mut buffer = String::new();
@@ -177,6 +233,21 @@ impl Bins {
       return Err(format!("invalid url for {}", bin.get_name()).into());
     }
     Ok(try!(bin.produce_raw_contents(self, &url)))
+  }
+
+  fn check_for_disallowed_files(&self, to_paste: &[PasteFile]) -> Option<(String, String)> {
+    for pattern in self.config.get_general_disallowed_file_patterns().unwrap_or(&[]) {
+      let pattern = match pattern.as_str() {
+        Some(s) => s,
+        None => continue,
+      };
+      for file in to_paste {
+        if file.name.matches_pattern(pattern) {
+          return Some((file.name.clone(), pattern.to_owned()));
+        }
+      }
+    }
+    None
   }
 
   pub fn get_output(&self) -> Result<String> {
@@ -265,5 +336,35 @@ impl Iterator for FlexibleRange {
       return self.next();
     }
     n
+  }
+}
+
+trait MatchesPattern<'a> {
+  fn matches_pattern(&self, pattern: &'a str) -> bool;
+}
+
+impl<'a> MatchesPattern<'a> for String {
+  fn matches_pattern(&self, pattern: &'a str) -> bool {
+    if pattern == "*" || pattern == self {
+      return true;
+    }
+    if self.is_empty() {
+      return false;
+    }
+    let pattern_first = match pattern.chars().next() {
+      Some(f) => f,
+      None => return false,
+    };
+    let string_first = match self.chars().next() {
+      Some(f) => f,
+      None => return false,
+    };
+    if pattern_first == string_first {
+      return (&self[1..]).to_owned().matches_pattern(&pattern[1..]);
+    }
+    if pattern_first == '*' {
+      return self.matches_pattern(&pattern[1..]) || (&self[1..]).to_owned().matches_pattern(pattern);
+    }
+    false
   }
 }

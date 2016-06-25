@@ -1,12 +1,11 @@
 use bins::error::*;
-use bins::configuration::BetterLookups;
+use bins::configuration::BinsConfiguration;
 use bins::engines;
 use bins::FlexibleRange;
 use bins::network;
 use clap::{App, Arg};
 use hyper::Url;
 use std::process;
-use toml::Value;
 
 pub struct Arguments {
   pub files: Vec<String>,
@@ -21,7 +20,8 @@ pub struct Arguments {
   pub urls: bool,
   pub all: bool,
   pub server: Option<Url>,
-  pub name: Option<String>
+  pub name: Option<String>,
+  pub force: bool
 }
 
 include!(concat!(env!("OUT_DIR"), "/git_short_tag.rs"));
@@ -56,21 +56,22 @@ cfg_if! {
   }
 }
 
-pub fn get_arguments(config: &Value) -> Result<Arguments> {
+pub fn get_arguments(config: &BinsConfiguration) -> Result<Arguments> {
   let mut arguments = Arguments {
     files: Vec::new(),
     message: None,
-    service: config.lookup_str("defaults.service").map(|s| s.to_owned()),
-    private: config.lookup_bool_or("defaults.private", true),
-    auth: config.lookup_bool_or("defaults.auth", true),
-    copy: config.lookup_bool_or("defaults.copy", false),
+    service: config.get_defaults_service().map(|s| s.to_owned()),
+    private: config.get_defaults_private(),
+    auth: config.get_defaults_auth(),
+    copy: config.get_defaults_copy(),
     input: None,
     range: None,
     raw_urls: false,
     urls: false,
     all: false,
     server: None,
-    name: None
+    name: None,
+    force: false
   };
   let name = get_name();
   let version = get_version();
@@ -163,7 +164,12 @@ pub fn get_arguments(config: &Value) -> Result<Arguments> {
       .help("specifies a file name for --message or stdin")
       .takes_value(true)
       .value_name("name")
-      .conflicts_with("files"));
+      .conflicts_with("files"))
+    .arg(Arg::with_name("force")
+      .short("f")
+      .long("force")
+      .help("overrides warnings about file type or size when uploading")
+      .conflicts_with("input"));
   for arg in get_clipboard_args() {
     app = app.arg(arg);
   }
@@ -208,6 +214,7 @@ pub fn get_arguments(config: &Value) -> Result<Arguments> {
   arguments.raw_urls = res.is_present("raw-urls");
   arguments.urls = res.is_present("urls");
   arguments.all = res.is_present("all");
+  arguments.force = res.is_present("force");
   if res.is_present("private") {
     arguments.private = true;
   } else if res.is_present("public") {
