@@ -1,24 +1,15 @@
+extern crate libc;
 extern crate magic_sys;
 extern crate std;
 
 use bins::error::*;
+use libc::size_t;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 pub struct MagicWrapper {
   magic: *const magic_sys::Magic,
   loaded: bool
-}
-
-cfg_if! {
-  if #[cfg(target_pointer_width = "64")] {
-    type SizeT = u64;
-  } else if #[cfg(target_pointer_width = "32")] {
-    type SizeT = u32;
-  } else {
-    // well, that's interesting. default down to 32
-    type SizeT = u32;
-  }
 }
 
 impl Drop for MagicWrapper {
@@ -30,7 +21,7 @@ impl Drop for MagicWrapper {
 impl MagicWrapper {
   pub fn new(flags: i32, load_defaults: bool) -> Result<Self> {
     let magic = unsafe { magic_sys::magic_open(flags) };
-    if magic == std::ptr::null() {
+    if magic.is_null() {
       return Err("libmagic could not create a new magic cookie".into());
     }
     let mut wrapper = MagicWrapper {
@@ -64,9 +55,9 @@ impl MagicWrapper {
   }
 
   fn check_magic_return_value(&self, ptr: *const c_char) -> Result<String> {
-    if ptr == std::ptr::null() {
+    if ptr.is_null() {
       let error = unsafe { magic_sys::magic_error(self.magic) };
-      if error == std::ptr::null() {
+      if error.is_null() {
         Err("libmagic had an error but didn't think it did".into())
       } else {
         let error = unsafe { CStr::from_ptr(error) };
@@ -79,7 +70,7 @@ impl MagicWrapper {
 
   pub fn magic_buffer(&self, buf: &[u8]) -> Result<String> {
     try!(self.check_loaded());
-    let info: *const c_char = unsafe { magic_sys::magic_buffer(self.magic, buf.as_ptr(), buf.len() as SizeT) };
+    let info: *const c_char = unsafe { magic_sys::magic_buffer(self.magic, buf.as_ptr(), buf.len() as size_t) };
     self.check_magic_return_value(info)
   }
 

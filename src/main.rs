@@ -11,12 +11,17 @@ extern crate hyper;
 #[macro_use]
 extern crate lazy_static;
 extern crate linked_hash_map;
-#[cfg(feature = "file_type_checking")]
-extern crate magic_sys;
 extern crate rand;
 extern crate rustc_serialize;
 extern crate toml;
 extern crate url;
+
+cfg_if! {
+  if #[cfg(feature = "file_type_checking")] {
+    extern crate libc;
+    extern crate magic_sys;
+  } else {}
+}
 
 mod bins;
 
@@ -45,15 +50,17 @@ fn make_bins() -> Result<Bins> {
   Ok(Bins::new(config, arguments))
 }
 
-#[cfg(feature = "clipboard_support")]
-fn copy_to_clipboard(data: &str) -> Result<()> {
-  let mut clipboard = try!(ClipboardContext::new().map_err(|e| e.to_string()));
-  clipboard.set_contents((*data).to_owned()).map_err(|e| e.to_string().into())
-}
-
-#[cfg(not(feature = "clipboard_support"))]
-fn copy_to_clipboard(_: &str) -> Result<()> {
-  Ok(())
+cfg_if! {
+  if #[cfg(feature = "clipboard_support")] {
+    fn copy_to_clipboard(data: &str) -> Result<()> {
+      let mut clipboard = try!(ClipboardContext::new().map_err(|e| e.to_string()));
+      clipboard.set_contents((*data).to_owned()).map_err(|e| e.to_string().into())
+    }
+  } else {
+    fn copy_to_clipboard(_: &str) -> Result<()> {
+      Ok(())
+    }
+  }
 }
 
 fn inner() -> i32 {
