@@ -239,7 +239,6 @@ pub fn get_arguments(config: &BinsConfiguration) -> Result<Arguments> {
   app = app.arg(Arg::with_name("version")
     .short("V")
     .long("version")
-    app = app
     .help("prints version information")
     .overrides_with("bin_or_service"));
   #[cfg(feature = "copypasta")]
