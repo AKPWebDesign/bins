@@ -10,6 +10,7 @@ pub mod magic;
 
 extern crate std;
 extern crate toml;
+extern crate rustc_serialize;
 
 pub use self::engines::bitbucket::Bitbucket;
 pub use self::engines::gist::Gist;
@@ -23,6 +24,7 @@ use bins::arguments::Arguments;
 use bins::configuration::BinsConfiguration;
 use bins::engines::Bin;
 use hyper::Url;
+use rustc_serialize::json;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
@@ -85,13 +87,13 @@ impl Bins {
   }
 
   pub fn get_engine(&self) -> Result<&Box<Bin>> {
-    let service = match self.arguments.service {
-      Some(ref s) => s,
-      None => return Err("no service was specified and no default service was set.".into()),
+    let bin = match self.arguments.bin {
+      Some(ref b) => b,
+      None => return Err("no bin was specified and no default bin was set.".into()),
     };
-    match engines::get_bin_by_name(service) {
+    match engines::get_bin_by_name(bin) {
       Some(engine) => Ok(engine),
-      None => Err(format!("unknown service \"{}\"", service).into()),
+      None => Err(format!("unknown bin \"{}\"", bin).into()),
     }
   }
 
@@ -138,13 +140,13 @@ impl Bins {
         .map(|s| Path::new(s))
         .map(|p| {
           if !self.arguments.force {
-            let metadata = match p.metadata() {
-              Ok(m) => m,
-              Err(e) => return Err(e.to_string().into()),
-            };
-            let size = metadata.len();
             let limit = try!(self.config.get_general_file_size_limit());
             if let Some(limit) = limit {
+              let metadata = match p.metadata() {
+                Ok(m) => m,
+                Err(e) => return Err(format!("could not read metadata for {}: {}", p.to_string_lossy(), e).into()),
+              };
+              let size = metadata.len();
               if size > limit {
                 return Err(format!("{} ({} bytes) was larger than the upload limit ({} bytes). use --force to force \
                                     upload",
@@ -208,7 +210,7 @@ impl Bins {
     }
   }
 
-  pub fn add_number_to_string(string: &String, num: i32) -> String {
+  pub fn add_number_to_string(string: &str, num: i32) -> String {
     let (beginning, end) = {
       let path = Path::new(&string);
       let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_owned();
@@ -289,8 +291,22 @@ impl Bins {
     } else {
       return Err("no files to upload".into());
     };
+    if self.arguments.json {
+      return Ok(try!(json::encode(&UploadResult {
+        success: true,
+        url: Some(upload_url.as_str()),
+        bin: Some(engine.get_name())
+      })));
+    }
     Ok(upload_url.as_str().to_owned())
   }
+}
+
+#[derive(RustcEncodable)]
+struct UploadResult<'a> {
+  success: bool,
+  url: Option<&'a str>,
+  bin: Option<&'a str>
 }
 
 #[derive(Clone)]
